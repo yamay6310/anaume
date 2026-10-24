@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; form-action 'none'">
+<meta name="theme-color" content="#1B2430">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="穴埋め暗記">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>穴埋め暗記</title>
+<style>
+:root {
+  --bg: #EEF2F7; --surface: #FFFFFF; --ink: #1B2430; --muted: #566272; --rule: #D3DCE8;
+  --pen: #C73E0B; --pen-soft: #FFE6D8; --on-pen: #FFFFFF;
+  --ok: #1B7A4B; --on-ok: #FFFFFF; --ng: #B3261E;
+  --font: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'Noto Sans CJK JP', 'Meiryo', sans-serif;
+  --lh: 2.75rem;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0F141B; --surface: #171E27; --ink: #E7ECF2; --muted: #9BA9B9; --rule: #2B3747;
+    --pen: #FF9A5C; --pen-soft: #3B2618; --on-pen: #1E0D03;
+    --ok: #52C58C; --on-ok: #06210F; --ng: #FF8077;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.6;
+  padding-top: max(14px, env(safe-area-inset-top, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--pen); outline-offset: 2px; }
+.wrap { max-width: 640px; margin: 0 auto; padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px)); }
+h1 { margin: 0; font-size: 1.1875rem; line-height: 1.3; }
+h2 { margin: 0; font-size: 1.0625rem; }
+.sub { margin: 2px 0 0; font-size: 0.8125rem; color: var(--muted); }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.top .grow { min-width: 0; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.card { margin-top: 12px; padding: 16px; background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; }
+.card.tap { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.btn { min-height: 48px; padding: 0 16px; border: 2px solid var(--rule); border-radius: 12px; background: var(--surface); font-weight: 700; }
+.btn.main { background: var(--pen); border-color: var(--pen); color: var(--on-pen); }
+.btn.ok { background: var(--ok); border-color: var(--ok); color: var(--on-ok); }
+.btn.ng { background: transparent; border-color: var(--ng); color: var(--ng); }
+.btn.danger { border-color: var(--ng); color: var(--ng); background: transparent; }
+.btn.small { min-height: 40px; font-size: 0.875rem; padding: 0 12px; }
+.link { border: 0; background: none; padding: 8px 0; min-height: 36px; font-size: 0.8125rem; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.chip { min-height: 40px; padding: 0 14px; border: 1px solid var(--rule); border-radius: 20px; background: var(--surface); font-size: 0.875rem; font-variant-numeric: tabular-nums; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.chip:disabled { opacity: 0.45; cursor: default; }
+.tabs { display: grid; grid-template-columns: 1fr 1fr; margin-top: 12px; border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.tab { min-height: 44px; border: 0; background: transparent; font-weight: 700; font-size: 0.9375rem; color: var(--muted); }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--bg); }
+.segs { display: flex; gap: 2px; height: 8px; margin-top: 14px; }
+.seg { flex: 1; min-width: 0; border-radius: 2px; background: var(--rule); }
+.seg.ok { background: var(--ok); } .seg.ng { background: var(--ng); }
+.seg.cur { outline: 2px solid var(--ink); outline-offset: 1px; }
+.stats { display: flex; justify-content: space-between; gap: 12px; margin-top: 8px; font-size: 0.8125rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.meta { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 0.8125rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sec { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; min-width: 0; }
+.num { font-size: 1.5rem; line-height: 1; color: var(--pen); font-weight: 700; min-width: 1.2em; }
+.tag { font-weight: 700; font-size: 0.9375rem; overflow-wrap: anywhere; }
+.q {
+  margin: 10px 0 0; font-size: 1.125rem; line-height: var(--lh); overflow-wrap: anywhere;
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--lh) - 1px), var(--rule) calc(var(--lh) - 1px), var(--rule) var(--lh));
+}
+.blank {
+  display: inline; padding: 0.1em 0.25em; margin: 0 0.1em; border: 0; border-bottom: 2px solid var(--pen); border-radius: 4px 4px 0 0;
+  background: var(--pen-soft); color: transparent; user-select: none; -webkit-user-select: none; line-height: 1.5;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
+.blank.cur { outline: 2px solid var(--pen); outline-offset: 1px; }
+.blank.rev { background: transparent; color: var(--pen); font-weight: 700; user-select: text; -webkit-user-select: text; outline: none; }
+.blank.other { background: transparent; color: var(--muted); border-bottom: 1px dashed var(--muted); user-select: text; -webkit-user-select: text; }
+.blank.hid { background: var(--rule); border-bottom-color: var(--muted); }
+.blank.tagb { font-size: 0.9375rem; font-weight: 700; }
+button.blank { font-size: inherit; }
+.blank.tagb { font-size: 0.9375rem; }
+
+.deck { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: center; }
+.deck .name { font-weight: 700; overflow-wrap: anywhere; }
+.deck .info { font-size: 0.8125rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar-mini { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--rule); overflow: hidden; display: flex; }
+.bar-mini i { display: block; height: 100%; background: var(--ok); }
+.bar-mini b { display: block; height: 100%; background: var(--ng); }
+
+label.f { display: block; margin-top: 14px; font-size: 0.8125rem; color: var(--muted); font-weight: 700; }
+input[type=text], textarea {
+  width: 100%; margin-top: 6px; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface);
+}
+textarea { min-height: 280px; line-height: 1.7; resize: vertical; }
+.check { display: flex; align-items: center; gap: 10px; margin-top: 14px; min-height: 44px; }
+.check input { width: 22px; height: 22px; }
+.help { font-size: 0.8125rem; color: var(--muted); margin: 8px 0 0; }
+.help code { background: var(--pen-soft); padding: 0 4px; border-radius: 4px; }
+.privacy { margin-top: 20px; font-size: 0.8125rem; color: var(--muted); }
+
+.bar {
+  position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--rule);
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.bar-in { max-width: 640px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.bar-in .btn { min-height: 56px; font-size: 1.0625rem; }
+.bar-in .wide { grid-column: 1 / -1; }
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: no-preference) { .blank.rev { animation: ink 0.18s ease-out; } @keyframes ink { from { opacity: 0; } to { opacity: 1; } } }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<div class="bar" id="bar" hidden><div class="bar-in" id="barin"></div></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var KEY = 'anaume-v1';
+  var SAMPLE = {
+    id: 'sample', title: 'サンプル（使い方）', titleQ: true,
+    text: '# 空欄の作り方\n文章の中で、答えにしたい言葉を【　】で囲むと空欄になります。たとえば【東京】は日本の【首都】です。\n\n# 題名も問題にできる\n行の先頭に「# 」をつけて書くと見出しになります。見出しも【問題】として出せます。\n\n# 段落の分け方\n空行で区切ると、ひとかたまりずつ別の問題カードになります。'
+  };
+
+  function load() {
+    try { var r = localStorage.getItem(KEY); if (r) { var o = JSON.parse(r); if (o && o.decks) return o; } } catch (e) {}
+    return { decks: [JSON.parse(JSON.stringify(SAMPLE))], prog: {} };
+  }
+  var store = load();
+  var storeOk = true;
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(store)); storeOk = true; } catch (e) { storeOk = false; } }
+
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function multi(s) { return esc(s).replace(/\n/g, '<br>'); }
+  function uid() { return 'd' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36); }
+
+  function parse(deck) {
+    var secs = [], items = [];
+    String(deck.text || '').split(/\n[ \t　]*\n/).forEach(function (blk) {
+      blk = blk.replace(/^\s+|\s+$/g, '');
+      if (!blk) return;
+      var lines = blk.split('\n'), title = null;
+      if (/^#\s*/.test(lines[0]) && lines.length > 1) title = lines.shift().replace(/^#\s*/, '');
+      var si = secs.length, bi = 0;
+      var parts = lines.join('\n').split(/(【[^】]+】)/).filter(function (x) { return x !== ''; }).map(function (p) {
+        if (p.charAt(0) === '【' && p.charAt(p.length - 1) === '】') {
+          var ans = p.slice(1, -1), id = si + '-' + (bi++);
+          items.push({ id: id, key: 'B' + id + ':' + ans, si: si, ans: ans });
+          return { id: id, ans: ans };
+        }
+        return { text: p };
+      });
+      var sec = { n: si + 1, title: title, parts: parts };
+      secs.push(sec);
+      if (title && deck.titleQ !== false) items.push({ id: 't' + si, key: 'T' + si + ':' + title, si: si, ans: title, title: true });
+    });
+    var byId = {};
+    items.forEach(function (i) { byId[i.id] = i; });
+    return { secs: secs, items: items, byId: byId };
+  }
+
+  var S = { screen: 'list', deckId: null, draft: null, delArmed: false, backup: false, backupMsg: '' };
+  var Z = { view: 'card', filter: 'all', shuffle: false, hideOthers: false, queue: [], pos: 0, revealed: false, openSet: {}, P: null };
+
+  function deckOf(id) { return store.decks.filter(function (d) { return d.id === id; })[0]; }
+  function progOf(id) { return (store.prog[id] = store.prog[id] || {}); }
+  function countsFor(deck) {
+    var P = parse(deck), pr = progOf(deck.id), ok = 0, ng = 0;
+    P.items.forEach(function (i) { if (pr[i.key] === 'ok') ok++; else if (pr[i.key] === 'ng') ng++; });
+    return { ok: ok, ng: ng, all: P.items.length };
+  }
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- list ---------- */
+  function renderList() {
+    var h = '<div class="top"><div class="grow"><h1>穴埋め暗記</h1><p class="sub">このスマホの中だけに保存されます</p></div></div>';
+    h += '<div class="row" style="margin-top:14px"><button class="btn main" data-act="new">＋ 教材をつくる</button><button class="btn" data-act="backup">バックアップ</button></div>';
+    if (S.backup) h += backupPanel();
+    if (!storeOk) h += '<p class="help" style="color:var(--ng)">保存できません。ブラウザの設定で保存が禁止されている可能性があります。</p>';
+    if (!store.decks.length) h += '<div class="card"><h2>教材がありません</h2><p class="help">「教材をつくる」から追加してください。</p></div>';
+    store.decks.forEach(function (d) {
+      var c = countsFor(d);
+      h += '<section class="card deck"><div><div class="name">' + esc(d.title || '無題') + '</div><div class="info">覚えた ' + c.ok + ' / ' + c.all + '　まだ ' + c.ng + '</div></div>' +
+        '<div class="row"><button class="btn small" data-act="edit" data-id="' + esc(d.id) + '">編集</button><button class="btn small main" data-act="study" data-id="' + esc(d.id) + '"' + (c.all ? '' : ' disabled') + '>覚える</button></div>' +
+        '<div class="bar-mini" aria-hidden="true"><i style="width:' + (c.all ? c.ok / c.all * 100 : 0) + '%"></i><b style="width:' + (c.all ? c.ng / c.all * 100 : 0) + '%"></b></div></section>';
+    });
+    h += '<p class="privacy">入力した文章は、このスマホのブラウザ内にだけ保存されます。サーバーや外部には送信されません（通信は設定で遮断しています）。機種変更やブラウザのデータ削除に備えて、ときどきバックアップを取ってください。</p>';
+    return h;
+  }
+
+  function backupPanel() {
+    var json = JSON.stringify(store);
+    return '<section class="card"><h2>バックアップと復元</h2>' +
+      '<p class="help">下の文字列をコピーしてメモアプリなどに保存しておくと、あとで貼り付けて復元できます。教材と記録がすべて入ります。</p>' +
+      '<label class="f" for="bk">バックアップ用の文字列</label><textarea id="bk" style="min-height:120px" spellcheck="false">' + esc(json) + '</textarea>' +
+      '<div class="row" style="margin-top:10px"><button class="btn small" data-act="bkcopy">コピー</button><button class="btn small main" data-act="bkrestore">この内容で復元する</button><button class="btn small" data-act="backup">閉じる</button></div>' +
+      '<p class="help">復元すると、今ある教材と記録は置き換わります。<br><b id="bkmsg">' + esc(S.backupMsg) + '</b></p></section>';
+  }
+
+  /* ---------- edit ---------- */
+  function renderEdit() {
+    var d = S.draft, P = parse(d), blanks = P.items.filter(function (i) { return !i.title; }).length;
+    var isNew = !deckOf(d.id);
+    return '<div class="top"><div class="grow"><h1>' + (isNew ? '教材をつくる' : '教材を編集') + '</h1></div><button class="link" data-act="home">戻る</button></div>' +
+      '<label class="f" for="t">教材の名前</label><input type="text" id="t" value="' + esc(d.title) + '" autocomplete="off">' +
+      '<label class="f" for="x">本文</label>' +
+      '<textarea id="x" spellcheck="false" placeholder="ここに文章を貼り付けて、覚えたい言葉を選んで「空欄にする」を押します。">' + esc(d.text) + '</textarea>' +
+      '<div class="row" style="margin-top:10px"><button class="btn small main" data-act="wrap">選んだ言葉を空欄にする</button><button class="btn small" data-act="unwrap">選んだ範囲の空欄を外す</button></div>' +
+      '<p class="help">言葉を長押しで選んでから押します。空欄は <code>【　】</code> で囲まれます。空行で区切ると別カード、行頭に <code>#</code> と空白を付けた行は見出しになります。</p>' +
+      '<label class="check"><input type="checkbox" id="tq"' + (d.titleQ !== false ? ' checked' : '') + '> 見出しも問題にする</label>' +
+      '<p class="help" id="cnt">空欄 ' + blanks + 'か所 / カード ' + P.secs.length + '枚</p>' +
+      '<div class="row" style="margin-top:16px"><button class="btn main" data-act="save">保存</button>' +
+      (isNew ? '' : '<button class="btn danger" data-act="del">' + (S.delArmed ? 'もう一度押すと削除' : '削除') + '</button>') + '</div>';
+  }
+
+  /* ---------- study ---------- */
+  function buildQueue() {
+    var pr = progOf(S.deckId), list = Z.P.items.filter(function (i) {
+      if (Z.filter === 'title') return !!i.title;
+      if (Z.filter === 'todo') return pr[i.key] !== 'ok';
+      if (Z.filter === 'ng') return pr[i.key] === 'ng';
+      return true;
+    }).map(function (i) { return i.id; });
+    if (Z.shuffle) for (var i = list.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = list[i]; list[i] = list[j]; list[j] = t; }
+    Z.queue = list; Z.pos = 0; Z.revealed = false;
+  }
+  function head(sec, mode, it) {
+    var tid = 't' + (sec.n - 1), t = '';
+    if (sec.title) {
+      if (mode === 'all') {
+        var open = !!Z.openSet[tid];
+        t = '<button class="blank tagb' + (open ? ' rev' : '') + '" data-act="tog" data-id="' + tid + '" aria-pressed="' + open + '">' + esc(sec.title) + '</button>';
+      } else if (it && it.title) {
+        t = '<span class="blank tagb cur' + (Z.revealed ? ' rev' : '') + '">' + esc(sec.title) + '</span>';
+      } else t = '<span class="tag">' + esc(sec.title) + '</span>';
+    }
+    return '<div class="sec"><span class="num">' + sec.n + '</span>' + t + '</div>';
+  }
+  function passage(sec, mode, curId) {
+    var isT = !!curId && curId.charAt(0) === 't';
+    return sec.parts.map(function (p) {
+      if (p.text !== undefined) return multi(p.text);
+      if (mode === 'all') {
+        var open = !!Z.openSet[p.id];
+        return '<button class="blank' + (open ? ' rev' : '') + '" data-act="tog" data-id="' + p.id + '" aria-pressed="' + open + '">' + esc(p.ans) + '</button>';
+      }
+      if (isT) return '<span class="blank other">' + esc(p.ans) + '</span>';
+      if (p.id === curId) return '<span class="blank cur' + (Z.revealed ? ' rev' : '') + '">' + esc(p.ans) + '</span>';
+      return '<span class="blank ' + (Z.hideOthers ? 'hid' : 'other') + '">' + esc(p.ans) + '</span>';
+    }).join('');
+  }
+  function chip(act, v, label, on, dis) {
+    return '<button class="chip" data-act="' + act + '" data-v="' + v + '" aria-pressed="' + on + '"' + (dis && !on ? ' disabled' : '') + '>' + label + '</button>';
+  }
+  function renderStudy() {
+    var deck = deckOf(S.deckId), P = Z.P, pr = progOf(deck.id), ok = 0, ng = 0;
+    P.items.forEach(function (i) { if (pr[i.key] === 'ok') ok++; else if (pr[i.key] === 'ng') ng++; });
+    var todo = P.items.length - ok, cur = Z.queue[Z.pos];
+    var done = Z.view === 'card' && Z.queue.length > 0 && Z.pos >= Z.queue.length;
+    var titleN = P.items.filter(function (i) { return i.title; }).length;
+    var h = '<div class="top"><div class="grow"><h1>' + esc(deck.title || '無題') + '</h1></div><button class="link" data-act="home">一覧へ</button></div>';
+    h += '<div class="segs" aria-hidden="true">' + P.items.map(function (i) {
+      return '<span class="seg' + (pr[i.key] ? ' ' + pr[i.key] : '') + (Z.view === 'card' && !done && cur === i.id ? ' cur' : '') + '"></span>';
+    }).join('') + '</div>';
+    h += '<div class="stats"><span>覚えた ' + ok + ' / ' + P.items.length + '</span><span>まだ ' + ng + '</span></div>';
+    h += '<div class="tabs" role="tablist"><button class="tab" role="tab" data-act="view" data-v="card" aria-selected="' + (Z.view === 'card') + '">1問ずつ</button>' +
+      '<button class="tab" role="tab" data-act="view" data-v="all" aria-selected="' + (Z.view === 'all') + '">通しで見る</button></div>';
+    if (Z.view === 'card') {
+      h += '<div class="chips">' + chip('filter', 'all', '全部 ' + P.items.length, Z.filter === 'all', false) +
+        chip('filter', 'todo', '未習得 ' + todo, Z.filter === 'todo', todo === 0) +
+        chip('filter', 'ng', 'まだ ' + ng, Z.filter === 'ng', ng === 0) +
+        (titleN ? chip('filter', 'title', '見出しだけ ' + titleN, Z.filter === 'title', false) : '') +
+        '<button class="chip" data-act="shuffle" aria-pressed="' + Z.shuffle + '">シャッフル</button>' +
+        '<button class="chip" data-act="hide" aria-pressed="' + Z.hideOthers + '">他の空欄も伏せる</button></div>';
+    } else {
+      h += '<div class="chips"><button class="chip" data-act="all" data-v="1">全部見る</button><button class="chip" data-act="all" data-v="0">全部隠す</button></div>';
+    }
+    var bar = '';
+    if (Z.view === 'all') {
+      h += P.secs.map(function (s) { return '<section class="card">' + head(s, 'all') + '<p class="q">' + passage(s, 'all') + '</p></section>'; }).join('');
+    } else if (!Z.queue.length) {
+      h += '<section class="card"><h2>この条件の問題はありません</h2><p class="help">「全部」に戻して続けられます。</p><div class="row" style="margin-top:12px"><button class="btn" data-act="restart">全部に戻す</button></div></section>';
+    } else if (done) {
+      h += '<section class="card"><h2>ひと通り終わりました</h2><p class="help">覚えた ' + ok + '個 / まだ ' + ng + '個</p><div class="row" style="margin-top:12px">' +
+        (ng ? '<button class="btn main" data-act="reviewng">まだの ' + ng + '個を復習</button>' : '') + '<button class="btn" data-act="restart">最初から全部</button></div></section>';
+    } else {
+      var it = P.byId[cur], sec = P.secs[it.si];
+      h += '<section class="card tap" data-act="flip"><div class="meta"><span>' + (Z.pos + 1) + ' / ' + Z.queue.length + '</span><span>' + it.ans.length + '文字</span>' +
+        '<button class="link" data-act="back">ひとつ戻る</button></div>' + head(sec, 'card', it) + '<p class="q">' + passage(sec, 'card', cur) + '</p></section>';
+      bar = Z.revealed ? '<button class="btn ng" data-act="ng">まだ</button><button class="btn ok" data-act="ok">覚えた</button>' : '<button class="btn main wide" data-act="flip">答えを見る</button>';
+    }
+    return { html: h, bar: bar };
+  }
+
+  /* ---------- render ---------- */
+  function render() {
+    var out = '', bar = '';
+    if (S.screen === 'list') out = renderList();
+    else if (S.screen === 'edit') out = renderEdit();
+    else { var r = renderStudy(); out = r.html; bar = r.bar; }
+    $('app').innerHTML = out;
+    $('barin').innerHTML = bar;
+    $('bar').hidden = !bar;
+    window.scrollTo(0, 0);
+  }
+  function rerenderKeepScroll() { var y = window.scrollY; render(); window.scrollTo(0, y); }
+
+  function readDraft() {
+    var t = $('t'), x = $('x'), q = $('tq');
+    if (t) S.draft.title = t.value;
+    if (x) S.draft.text = x.value;
+    if (q) S.draft.titleQ = q.checked;
+  }
+  function mark(s) {
+    var cur = Z.queue[Z.pos]; if (!cur) return;
+    progOf(S.deckId)[Z.P.byId[cur].key] = s; save(); Z.pos++; Z.revealed = false; rerenderKeepScroll();
+  }
+
+  document.addEventListener('input', function (e) {
+    if (S.screen === 'edit' && (e.target.id === 'x' || e.target.id === 't')) {
+      readDraft();
+      var P = parse(S.draft);
+      $('cnt').textContent = '空欄 ' + P.items.filter(function (i) { return !i.title; }).length + 'か所 / カード ' + P.secs.length + '枚';
+    }
+  });
+  document.addEventListener('change', function (e) { if (e.target.id === 'tq') readDraft(); });
+
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-act]'); if (!t) return;
+    var act = t.getAttribute('data-act'), v = t.getAttribute('data-v'), id = t.getAttribute('data-id');
+    switch (act) {
+      case 'home': S.screen = 'list'; S.delArmed = false; render(); break;
+      case 'new': S.draft = { id: uid(), title: '', text: '', titleQ: true }; S.screen = 'edit'; S.delArmed = false; render(); break;
+      case 'edit': S.draft = JSON.parse(JSON.stringify(deckOf(id))); S.screen = 'edit'; S.delArmed = false; render(); break;
+      case 'save':
+        readDraft();
+        if (!S.draft.title.replace(/\s/g, '')) S.draft.title = '無題の教材';
+        var ex = deckOf(S.draft.id);
+        if (ex) store.decks[store.decks.indexOf(ex)] = S.draft; else store.decks.push(S.draft);
+        save(); S.screen = 'list'; render(); break;
+      case 'del':
+        if (S.delArmed) {
+          store.decks = store.decks.filter(function (d) { return d.id !== S.draft.id; });
+          delete store.prog[S.draft.id]; save(); S.delArmed = false; S.screen = 'list'; render();
+        } else { readDraft(); S.delArmed = true; var y = window.scrollY; render(); window.scrollTo(0, y); }
+        break;
+      case 'wrap': case 'unwrap':
+        var x = $('x'), a = x.selectionStart, b = x.selectionEnd;
+        if (a === b) { alert0('先に言葉を長押しして選んでください。'); break; }
+        var sel = x.value.slice(a, b);
+        if (act === 'wrap') {
+          sel = sel.replace(/[【】]/g, '');
+          if (!sel.replace(/\s/g, '')) break;
+          x.value = x.value.slice(0, a) + '【' + sel + '】' + x.value.slice(b);
+          x.setSelectionRange(a, a + sel.length + 2);
+        } else {
+          var cleaned = sel.replace(/[【】]/g, '');
+          x.value = x.value.slice(0, a) + cleaned + x.value.slice(b);
+          x.setSelectionRange(a, a + cleaned.length);
+        }
+        readDraft(); x.dispatchEvent(new Event('input', { bubbles: true })); break;
+      case 'backup': S.backup = !S.backup; S.backupMsg = ''; rerenderKeepScroll(); break;
+      case 'bkcopy':
+        var bk = $('bk'), copied = false;
+        bk.focus(); bk.select();
+        try { copied = document.execCommand('copy'); } catch (er) {}
+        if (!copied && navigator.clipboard && navigator.clipboard.writeText) { try { navigator.clipboard.writeText(bk.value); copied = true; } catch (er2) {} }
+        S.backupMsg = copied ? 'コピーしました。' : '選択された状態です。長押ししてコピーしてください。';
+        var bm = document.querySelector('#bkmsg'); if (bm) bm.textContent = S.backupMsg;
+        break;
+      case 'bkrestore':
+        try {
+          var o = JSON.parse($('bk').value);
+          if (!o || !Array.isArray(o.decks)) throw new Error('bad');
+          store = { decks: o.decks.map(function (d) { return { id: String(d.id), title: String(d.title || ''), text: String(d.text || ''), titleQ: d.titleQ !== false }; }), prog: (o.prog && typeof o.prog === 'object') ? o.prog : {} };
+          save(); S.backupMsg = '復元しました。'; S.backup = false; render();
+        } catch (er) { S.backupMsg = '復元できません。文字列が途中で切れていないか確認してください。'; rerenderKeepScroll(); }
+        break;
+      case 'study':
+        S.deckId = id; Z.P = parse(deckOf(id)); Z.view = 'card'; Z.filter = 'all'; Z.openSet = {}; buildQueue(); S.screen = 'study'; render(); break;
+      case 'flip': if (Z.queue[Z.pos]) { Z.revealed = !Z.revealed; rerenderKeepScroll(); } break;
+      case 'ok': mark('ok'); break;
+      case 'ng': mark('ng'); break;
+      case 'back': e.stopPropagation(); if (Z.pos > 0) { Z.pos--; Z.revealed = false; rerenderKeepScroll(); } break;
+      case 'filter': Z.filter = v; buildQueue(); render(); break;
+      case 'shuffle': Z.shuffle = !Z.shuffle; buildQueue(); render(); break;
+      case 'hide': Z.hideOthers = !Z.hideOthers; rerenderKeepScroll(); break;
+      case 'view': Z.view = v; render(); break;
+      case 'tog': Z.openSet[id] = !Z.openSet[id]; rerenderKeepScroll(); break;
+      case 'all': Z.openSet = {}; if (v === '1') Z.P.items.forEach(function (i) { Z.openSet[i.id] = true; }); rerenderKeepScroll(); break;
+      case 'restart': Z.filter = 'all'; buildQueue(); render(); break;
+      case 'reviewng': Z.filter = 'ng'; buildQueue(); render(); break;
+    }
+  });
+
+  function alert0(msg) {
+    var p = document.querySelector('.help'); if (p) { p.textContent = msg; p.style.color = 'var(--ng)'; }
+  }
+
+  render();
+
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+  }
+})();
+</script>
+</body>
+</html>
