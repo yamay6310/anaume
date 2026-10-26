@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; form-action 'none'">
 <meta name="theme-color" content="#1B2430">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -90,6 +90,15 @@ h2 { margin: 0; font-size: 1.0625rem; }
 button.blank { font-size: inherit; }
 .blank.tagb { font-size: 0.9375rem; }
 
+.ans { margin-top: 14px; }
+.ans label.f { margin-top: 0; }
+.ans input[type=text] { font-size: 1.25rem; padding: 12px 14px; }
+.res { display: grid; gap: 4px; padding: 10px 14px; border-radius: 10px; border: 2px solid var(--rule); }
+.res b { font-size: 1.0625rem; }
+.res.good { border-color: var(--ok); } .res.good b { color: var(--ok); }
+.res.bad { border-color: var(--ng); } .res.bad b { color: var(--ng); }
+.res span { overflow-wrap: anywhere; }
+.btn.ng.fill { background: var(--ng); color: var(--bg); border-color: var(--ng); }
 .deck { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: center; }
 .deck .name { font-weight: 700; overflow-wrap: anywhere; }
 .deck .info { font-size: 0.8125rem; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -154,7 +163,7 @@ textarea { min-height: 280px; line-height: 1.7; resize: vertical; }
       if (/^#\s*/.test(lines[0]) && lines.length > 1) title = lines.shift().replace(/^#\s*/, '');
       var si = secs.length, bi = 0;
       var parts = lines.join('\n').split(/(【[^】]+】)/).filter(function (x) { return x !== ''; }).map(function (p) {
-        if (p.charAt(0) === '【' && p.charAt(p.length - 1) === '】') {
+        if (p.charAt(0) === '【' && p.charAt(p.length - 1) === '】' && p.slice(1, -1).replace(/[\s　]/g, '') !== '') {
           var ans = p.slice(1, -1), id = si + '-' + (bi++);
           items.push({ id: id, key: 'B' + id + ':' + ans, si: si, ans: ans });
           return { id: id, ans: ans };
@@ -171,7 +180,8 @@ textarea { min-height: 280px; line-height: 1.7; resize: vertical; }
   }
 
   var S = { screen: 'list', deckId: null, draft: null, delArmed: false, backup: false, backupMsg: '' };
-  var Z = { view: 'card', filter: 'all', shuffle: false, hideOthers: false, queue: [], pos: 0, revealed: false, openSet: {}, P: null };
+  var Z = { view: 'card', filter: 'all', shuffle: false, hideOthers: false, queue: [], pos: 0, revealed: false, openSet: {}, P: null,
+    typed: !!(store.ui && store.ui.typed), checked: false, userAns: '', correct: false };
 
   function deckOf(id) { return store.decks.filter(function (d) { return d.id === id; })[0]; }
   function progOf(id) { return (store.prog[id] = store.prog[id] || {}); }
@@ -233,7 +243,7 @@ textarea { min-height: 280px; line-height: 1.7; resize: vertical; }
       return true;
     }).map(function (i) { return i.id; });
     if (Z.shuffle) for (var i = list.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = list[i]; list[i] = list[j]; list[j] = t; }
-    Z.queue = list; Z.pos = 0; Z.revealed = false;
+    Z.queue = list; Z.pos = 0; Z.revealed = false; Z.checked = false; Z.userAns = '';
   }
   function head(sec, mode, it) {
     var tid = 't' + (sec.n - 1), t = '';
@@ -281,6 +291,7 @@ textarea { min-height: 280px; line-height: 1.7; resize: vertical; }
         chip('filter', 'todo', '未習得 ' + todo, Z.filter === 'todo', todo === 0) +
         chip('filter', 'ng', 'まだ ' + ng, Z.filter === 'ng', ng === 0) +
         (titleN ? chip('filter', 'title', '見出しだけ ' + titleN, Z.filter === 'title', false) : '') +
+        '<button class="chip" data-act="typed" aria-pressed="' + Z.typed + '">入力で答える</button>' +
         '<button class="chip" data-act="shuffle" aria-pressed="' + Z.shuffle + '">シャッフル</button>' +
         '<button class="chip" data-act="hide" aria-pressed="' + Z.hideOthers + '">他の空欄も伏せる</button></div>';
     } else {
@@ -296,9 +307,20 @@ textarea { min-height: 280px; line-height: 1.7; resize: vertical; }
         (ng ? '<button class="btn main" data-act="reviewng">まだの ' + ng + '個を復習</button>' : '') + '<button class="btn" data-act="restart">最初から全部</button></div></section>';
     } else {
       var it = P.byId[cur], sec = P.secs[it.si];
-      h += '<section class="card tap" data-act="flip"><div class="meta"><span>' + (Z.pos + 1) + ' / ' + Z.queue.length + '</span><span>' + it.ans.length + '文字</span>' +
-        '<button class="link" data-act="back">ひとつ戻る</button></div>' + head(sec, 'card', it) + '<p class="q">' + passage(sec, 'card', cur) + '</p></section>';
-      bar = Z.revealed ? '<button class="btn ng" data-act="ng">まだ</button><button class="btn ok" data-act="ok">覚えた</button>' : '<button class="btn main wide" data-act="flip">答えを見る</button>';
+      var tm = Z.typed;
+      h += '<section class="card' + (tm ? '' : ' tap') + '"' + (tm ? '' : ' data-act="flip"') + '><div class="meta"><span>' + (Z.pos + 1) + ' / ' + Z.queue.length + '</span><span>' + it.ans.length + '文字</span>' +
+        '<button class="link" data-act="back">ひとつ戻る</button></div>' + head(sec, 'card', it) + '<p class="q">' + passage(sec, 'card', cur) + '</p>' + (tm ? answerBox(it) : '') + '</section>';
+      if (tm) {
+        if (Z.checked) {
+          bar = Z.correct
+            ? '<button class="btn ng" data-act="ng">まだ</button><button class="btn ok" data-act="ok">覚えた</button>'
+            : '<button class="btn ng fill" data-act="ng">まだ</button><button class="btn" data-act="ok">覚えた</button>';
+        } else {
+          bar = '<button class="btn" data-act="giveup">わからない</button><button class="btn main" data-act="check">答え合わせ</button>';
+        }
+      } else {
+        bar = Z.revealed ? '<button class="btn ng" data-act="ng">まだ</button><button class="btn ok" data-act="ok">覚えた</button>' : '<button class="btn main wide" data-act="flip">答えを見る</button>';
+      }
     }
     return { html: h, bar: bar };
   }
@@ -313,6 +335,8 @@ textarea { min-height: 280px; line-height: 1.7; resize: vertical; }
     $('barin').innerHTML = bar;
     $('bar').hidden = !bar;
     window.scrollTo(0, 0);
+    var ai = $('ai');
+    if (ai) { try { ai.focus({ preventScroll: true }); } catch (er) {} }
   }
   function rerenderKeepScroll() { var y = window.scrollY; render(); window.scrollTo(0, y); }
 
@@ -322,9 +346,27 @@ textarea { min-height: 280px; line-height: 1.7; resize: vertical; }
     if (x) S.draft.text = x.value;
     if (q) S.draft.titleQ = q.checked;
   }
+  function norm(s) { return String(s).normalize('NFKC').replace(/[\s　]/g, '').toLowerCase(); }
+  function answerBox(it) {
+    if (!Z.checked) {
+      return '<div class="ans"><label class="f" for="ai">答えを入力</label>' +
+        '<input type="text" id="ai" value="' + esc(Z.userAns) + '" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done"></div>';
+    }
+    return '<div class="ans res ' + (Z.correct ? 'good' : 'bad') + '"><b>' + (Z.correct ? '正解' : '不正解') + '</b>' +
+      (Z.userAns ? '<span>あなたの答え：' + esc(Z.userAns) + '</span>' : '') +
+      (Z.correct ? '' : '<span>正しくは：' + esc(it.ans) + '</span>') + '</div>';
+  }
+  function doCheck(giveup) {
+    var cur = Z.queue[Z.pos]; if (!cur || Z.checked) return;
+    var it = Z.P.byId[cur], inp = $('ai');
+    if (inp) Z.userAns = inp.value;
+    if (giveup) Z.userAns = '';
+    Z.correct = !giveup && norm(Z.userAns) !== '' && norm(Z.userAns) === norm(it.ans);
+    Z.checked = true; Z.revealed = true; rerenderKeepScroll();
+  }
   function mark(s) {
     var cur = Z.queue[Z.pos]; if (!cur) return;
-    progOf(S.deckId)[Z.P.byId[cur].key] = s; save(); Z.pos++; Z.revealed = false; rerenderKeepScroll();
+    progOf(S.deckId)[Z.P.byId[cur].key] = s; save(); Z.pos++; Z.revealed = false; Z.checked = false; Z.userAns = ''; rerenderKeepScroll();
   }
 
   document.addEventListener('input', function (e) {
@@ -333,6 +375,10 @@ textarea { min-height: 280px; line-height: 1.7; resize: vertical; }
       var P = parse(S.draft);
       $('cnt').textContent = '空欄 ' + P.items.filter(function (i) { return !i.title; }).length + 'か所 / カード ' + P.secs.length + '枚';
     }
+  });
+  document.addEventListener('input', function (e) { if (S.screen === 'study' && e.target.id === 'ai') Z.userAns = e.target.value; });
+  document.addEventListener('keydown', function (e) {
+    if (e.target && e.target.id === 'ai' && e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); doCheck(false); }
   });
   document.addEventListener('change', function (e) { if (e.target.id === 'tq') readDraft(); });
 
@@ -390,9 +436,14 @@ textarea { min-height: 280px; line-height: 1.7; resize: vertical; }
       case 'study':
         S.deckId = id; Z.P = parse(deckOf(id)); Z.view = 'card'; Z.filter = 'all'; Z.openSet = {}; buildQueue(); S.screen = 'study'; render(); break;
       case 'flip': if (Z.queue[Z.pos]) { Z.revealed = !Z.revealed; rerenderKeepScroll(); } break;
+      case 'check': doCheck(false); break;
+      case 'giveup': doCheck(true); break;
+      case 'typed':
+        Z.typed = !Z.typed; store.ui = store.ui || {}; store.ui.typed = Z.typed; save();
+        Z.revealed = false; Z.checked = false; Z.userAns = ''; render(); break;
       case 'ok': mark('ok'); break;
       case 'ng': mark('ng'); break;
-      case 'back': e.stopPropagation(); if (Z.pos > 0) { Z.pos--; Z.revealed = false; rerenderKeepScroll(); } break;
+      case 'back': e.stopPropagation(); if (Z.pos > 0) { Z.pos--; Z.revealed = false; Z.checked = false; Z.userAns = ''; rerenderKeepScroll(); } break;
       case 'filter': Z.filter = v; buildQueue(); render(); break;
       case 'shuffle': Z.shuffle = !Z.shuffle; buildQueue(); render(); break;
       case 'hide': Z.hideOthers = !Z.hideOthers; rerenderKeepScroll(); break;
